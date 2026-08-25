@@ -33,8 +33,8 @@ def check_wind_speed(forecast_data):
         return False, 0
     for item in forecast_data["list"]:
         wind_speed_kmh = item["wind"]["speed"] * 3.6  # Convertir de m/s à km/h
-        if wind_speed_kmh > 40:
-        # if wind_speed_kmh > 0:
+        # if wind_speed_kmh > 40:
+        if wind_speed_kmh > 0:
             return True, wind_speed_kmh
     return False, 0
 
