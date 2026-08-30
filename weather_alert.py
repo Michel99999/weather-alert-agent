@@ -173,10 +173,6 @@ Prévisions OpenWeatherMap pour Saint-Jean-de-Luz
         # Envoi du résumé quotidien même sans alerte
         subject = f"🌤️ Résumé météo du jour - Saint-Jean-de-Luz"
         body = f"""
-Bonjour,
-
-Voici le résumé météo pour aujourd'hui à Saint-Jean-de-Luz :
-
 {day_summary}
 
 💨 Vent maximum prévu : {max_wind:.0f} km/h (à {max_wind_time.strftime('%H:%M')})
