@@ -2,7 +2,7 @@ name: Vérifier la météo et envoyer une alerte
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 7 * * *'  # 07:00 UTC = 09:00 heure de Paris
   workflow_dispatch:
 
 jobs:
