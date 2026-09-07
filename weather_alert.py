@@ -20,8 +20,8 @@ SMTP_PORT = 587
 WIND_THRESHOLD_KMH = 40
 
 # Code du port pour Saint-Jean-de-Luz (SHOM)
-PORT_CODE = "64500"  # Code officiel SHOM pour Saint-Jean-de-Luz
-
+# PORT_CODE = "64500"  # Code officiel SHOM pour Saint-Jean-de-Luz
+PORT_CODE = "95"  # Code officiel SHOM pour Saint-Jean-de-Luz
 # Fuseau horaire de Paris (UTC+2 en été, UTC+1 en hiver)
 PARIS_TZ = timezone(timedelta(hours=2))
 
