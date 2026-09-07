@@ -20,8 +20,8 @@ WIND_THRESHOLD_KMH = 40
 
 # Configuration pour api-maree.fr
 MAREE_API_KEY = "12a849135b3fb84c577123cf6a758005"
-MAREE_SITE = "saint-jean-de-luz"  # Site pour Saint-Jean-de-Luz
-MAREE_TZ = "Europe/Paris"  # Fuseau horaire
+MAREE_SITE = "saint-jean-de-luz"
+MAREE_TZ = "Europe/Paris"
 
 # Fuseau horaire de Paris
 PARIS_TZ = timezone(timedelta(hours=2))
@@ -68,15 +68,15 @@ def get_tides(date):
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            # L'API retourne une liste de marées ou un dictionnaire avec une clé "tides"
-            if isinstance(data, list):
-                return data
-            elif isinstance(data, dict) and "tides" in data:
-                return data["tides"]
-            else:
-                # Si la structure est différente, on essaie de parser manuellement
-                print(f"⚠️ Structure de réponse inattendue : {data}")
-                return []
+            # Les données sont dans data[0]["extrema"]
+            if "data" in data and len(data["data"]) > 0:
+                # Filtre les marées pour la date demandée
+                for day_data in data["data"]:
+                    if day_data["date"] == date_str:
+                        return day_data["extrema"]
+                # Si aucune correspondance, retourne les premières données
+                return data["data"][0]["extrema"] if data["data"] else []
+            return []
         else:
             print(f"⚠️ Erreur API marées (code {response.status_code}) : {response.text}")
             return None
@@ -91,10 +91,11 @@ def format_tides(tides_data):
 
     pm = [t for t in tides_data if t.get("type") == "PM"]
     bm = [t for t in tides_data if t.get("type") == "BM"]
-    coefficient = tides_data[0].get("coef", "N/A")
+    # Tous les extrema ont le même coefficient pour une journée
+    coefficient = tides_data[0].get("coef", "N/A") if tides_data else "N/A"
 
-    pm_str = ", ".join([f"{t.get('heure', 'N/A')} ({t.get('hauteur', 'N/A')}m)" for t in pm])
-    bm_str = ", ".join([f"{t.get('heure', 'N/A')} ({t.get('hauteur', 'N/A')}m)" for t in bm])
+    pm_str = ", ".join([f"{t.get('time', 'N/A')} ({t.get('height', 'N/A'):.2f}m)" for t in pm])
+    bm_str = ", ".join([f"{t.get('time', 'N/A')} ({t.get('height', 'N/A'):.2f}m)" for t in bm])
 
     return f"Marées : PM {pm_str} | BM {bm_str} | Coef: {coefficient}"
 
@@ -223,8 +224,11 @@ def main():
     tomorrow = today + timedelta(days=1)
 
     # Récupère les marées
+    print(f"🔍 Récupération des marées pour {today} et {tomorrow}...")
     tides_today = get_tides(today)
+    print(f"Marées aujourd'hui : {tides_today}")
     tides_tomorrow = get_tides(tomorrow)
+    print(f"Marées demain : {tides_tomorrow}")
 
     # Crée le résumé pour les 2 jours
     summary = "🌊 PRÉVISIONS MÉTÉO ET MARÉES POUR SAINT-JEAN-DE-LUZ\n\n"
