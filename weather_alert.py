@@ -4,7 +4,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone, timedelta
-import json
 
 # ========== CONFIGURATION ==========
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
@@ -19,10 +18,12 @@ SMTP_PORT = 587
 # Seuil de vent en km/h
 WIND_THRESHOLD_KMH = 40
 
-# Code du port pour Saint-Jean-de-Luz (SHOM)
-# PORT_CODE = "64500"  # Code officiel SHOM pour Saint-Jean-de-Luz
-PORT_CODE = "SOCOA"  # Code officiel SHOM pour Saint-Jean-de-Luz
-# Fuseau horaire de Paris (UTC+2 en été, UTC+1 en hiver)
+# Configuration pour api-maree.fr
+MAREE_API_KEY = "12a849135b3fb84c577123cf6a758005"
+MAREE_SITE = "saint-jean-de-luz"  # Site pour Saint-Jean-de-Luz
+MAREE_TZ = "Europe/Paris"  # Fuseau horaire
+
+# Fuseau horaire de Paris
 PARIS_TZ = timezone(timedelta(hours=2))
 
 # ========== FONCTIONS POUR LA METEO ==========
@@ -57,27 +58,27 @@ def get_forecast_by_day(forecast_data):
         })
     return days
 
-# ========== FONCTIONS POUR LES MAREES (SHOM) ==========
+# ========== FONCTIONS POUR LES MAREES (api-maree.fr) ==========
 def get_tides(date):
-    """Récupère les marées pour une date donnée (API SHOM)."""
+    """Récupère les marées pour une date donnée via api-maree.fr."""
     date_str = date.strftime("%Y-%m-%d")
-    url = f"https://data.shom.fr/marees/ports/{PORT_CODE}/{date_str}.json"
+    url = f"https://api-maree.fr/tide-extrema?site={MAREE_SITE}&from={date_str}&to={date_str}&tz={MAREE_TZ}&key={MAREE_API_KEY}"
+
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            # Extraire PM, BM et coefficient
-            tides = []
-            for extreme in data.get("extremes", []):
-                tides.append({
-                    "type": extreme["type"],  # "PM" ou "BM"
-                    "heure": extreme["heure"],
-                    "hauteur": extreme["hauteur"],
-                    "coefficient": data.get("coefficient", "N/A")
-                })
-            return tides
+            # L'API retourne une liste de marées ou un dictionnaire avec une clé "tides"
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict) and "tides" in data:
+                return data["tides"]
+            else:
+                # Si la structure est différente, on essaie de parser manuellement
+                print(f"⚠️ Structure de réponse inattendue : {data}")
+                return []
         else:
-            print(f"⚠️ Aucune donnée de marée pour {date_str} (code HTTP: {response.status_code})")
+            print(f"⚠️ Erreur API marées (code {response.status_code}) : {response.text}")
             return None
     except Exception as e:
         print(f"❌ Erreur API marées : {e}")
@@ -88,12 +89,12 @@ def format_tides(tides_data):
     if not tides_data:
         return "Marées : Données non disponibles"
 
-    pm = [t for t in tides_data if t["type"] == "PM"]
-    bm = [t for t in tides_data if t["type"] == "BM"]
-    coefficient = tides_data[0]["coefficient"] if tides_data else "N/A"
+    pm = [t for t in tides_data if t.get("type") == "PM"]
+    bm = [t for t in tides_data if t.get("type") == "BM"]
+    coefficient = tides_data[0].get("coef", "N/A")
 
-    pm_str = ", ".join([f"{t['heure']} ({t['hauteur']}m)" for t in pm])
-    bm_str = ", ".join([f"{t['heure']} ({t['hauteur']}m)" for t in bm])
+    pm_str = ", ".join([f"{t.get('heure', 'N/A')} ({t.get('hauteur', 'N/A')}m)" for t in pm])
+    bm_str = ", ".join([f"{t.get('heure', 'N/A')} ({t.get('hauteur', 'N/A')}m)" for t in bm])
 
     return f"Marées : PM {pm_str} | BM {bm_str} | Coef: {coefficient}"
 
@@ -248,7 +249,7 @@ Seuil d'alerte : {WIND_THRESHOLD_KMH} km/h
 {summary}
 
 ---------------
-Prévisions OpenWeatherMap + SHOM
+Prévisions OpenWeatherMap + api-maree.fr
 """
     else:
         subject = f"🌤️ Résumé météo et marées - Saint-Jean-de-Luz (J et J+1)"
@@ -263,7 +264,7 @@ Voici les prévisions météo et marées pour Saint-Jean-de-Luz :
 ✅ Aucune alerte vent fort (seuil : {WIND_THRESHOLD_KMH} km/h)
 
 ---------------
-Prévisions OpenWeatherMap + SHOM
+Prévisions OpenWeatherMap + api-maree.fr
 """
     send_email(subject, body)
 
